@@ -1,0 +1,53 @@
+
+
+services:
+  mongo-db:
+    image: mongo:latest
+    container_name: dentist-plus-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: dentistplus
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - dentist-plus-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  backend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dentist-plus-backend
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://mongo-db:27017/dentistplus
+      MONGODB_DATABASE: dentistplus
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongo-db:
+        condition: service_healthy
+    networks:
+      - dentist-plus-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  dentist-plus-network:
+    driver: bridge

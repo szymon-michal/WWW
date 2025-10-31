@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Stethoscope, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -18,7 +19,10 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
+const rawFrom = (location.state as any)?.from?.pathname;
+const fallback = '/'; // AppRoutes sam przekieruje pacjenta na /my/dashboard
+const target = !rawFrom || rawFrom === '/login' ? fallback : rawFrom;
+
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -48,17 +52,19 @@ export const LoginPage: React.FC = () => {
     setErrors({});
 
     try {
-      await login(email, password);
-      
-      // Redirect based on user role will be handled by the auth context
-      navigate(from, { replace: true });
+await login(email, password);
+console.log('Login OK – go to /');
+navigate('/', { replace: true });
     } catch (error: any) {
-      setErrors({
-        general: error.message || 'Login failed. Please check your credentials.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const ve = error?.details?.validationErrors;
+  const msg = ve
+    ? Object.entries(ve).map(([k, v]: any) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' ; ')
+    : (error?.message || 'Login failed. Please check your credentials.');
+  console.error('Login failed:', error);
+  setErrors({ general: msg });
+} finally {
+  setIsLoading(false);
+}
   };
 
   return (

@@ -17,14 +17,19 @@ import {
   PlannedProcedure
 } from '../types/api';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// In dev, prefer relative URLs so Vite proxy handles CORS; in prod, use configured base URL
+const BASE_URL = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL ?? '');
 
 class ApiClient {
   private token: string | null = null;
+  private userId: string | null = null;
 
   constructor() {
     // Load token from localStorage on initialization
     this.token = localStorage.getItem('auth_token');
+    this.userId = localStorage.getItem('user_id');
   }
 
   setAuthToken(token: string | null) {
@@ -36,69 +41,105 @@ class ApiClient {
     }
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${BASE_URL}${endpoint}`;
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...options.headers,
-    };
-
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
-    const config: RequestInit = {
-      ...options,
-      headers,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error: ApiError = {
-          message: errorData.message || `HTTP ${response.status}: ${response.statusText}`,
-          code: errorData.code || response.status.toString(),
-          details: errorData,
-        };
-        throw error;
-      }
-
-      // Handle empty responses (like 204 No Content)
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      if (error instanceof TypeError) {
-        // Network error
-        throw {
-          message: 'Network error. Please check your connection.',
-          code: 'NETWORK_ERROR',
-        } as ApiError;
-      }
-      throw error;
+  setUserId(userId: string | null) {
+    this.userId = userId;
+    if (userId) {
+      localStorage.setItem('user_id', userId);
+    } else {
+      localStorage.removeItem('user_id');
     }
   }
+
+private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+
+  // 1) bazowe nagłówki
+  const base = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
+
+  // 2) dolej ewentualne nagłówki z options (niezależnie od formatu)
+  if (options.headers) {
+    new Headers(options.headers as any).forEach((v, k) => base.set(k, v));
+  }
+
+  // 3) ustaw Authorization jeśli mamy token
+  if (this.token) {
+    base.set('Authorization', `Bearer ${this.token}`);
+  }
+
+  // 3b) dołącz X-User-ID dla endpointów wymagających identyfikatora użytkownika
+  if (this.userId) {
+    base.set('X-User-ID', this.userId);
+  }
+
+  // 4) zbuduj config – podmień headers na `base`
+ const config: RequestInit = { credentials: 'include', ...options, headers: base };
+
+
+  console.log('→', config.method ?? 'GET', url, config.body ?? '');
+
+  try {
+    const response = await fetch(url, config);
+    const status = response.status;
+    const ct = response.headers.get('content-type') ?? '';
+    const raw = await response.text();
+
+    if (!response.ok) {
+      console.log('←', status, raw);
+      let errorJson: any = {};
+      try { errorJson = raw ? JSON.parse(raw) : {}; } catch {}
+      throw { message: errorJson.message || `HTTP ${status}`, code: String(status), details: errorJson };
+    }
+
+    console.log('←', status, ct, raw ? `(len=${raw.length})` : '(empty body)');
+
+    if (!raw) return {} as T;
+    if (ct.includes('application/json')) {
+      try { return JSON.parse(raw) as T; } catch {}
+    }
+    return {} as T;
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw { message: 'Network error. Please check your connection.', code: 'NETWORK_ERROR' };
+    }
+    throw err;
+  }
+}
+
+
 
   // Authentication
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
+async login(credentials: LoginRequest): Promise<LoginResponse> {
+  const payload = { username: credentials.email, password: credentials.password };
+  const resp = await this.request<any>('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'include',     // ← ważne przy sesji w cookie
+  });
+  // Backend zwraca obiekt User – zapisz ID do nagłówka X-User-ID
+  if (resp && resp.id) {
+    this.setUserId(resp.id);
+  } else if (resp?.user?.id) {
+    this.setUserId(resp.user.id);
   }
+  return resp as LoginResponse;
+
+
+
+  // return this.request<LoginResponse>('/auth/login', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' }, // jeśli nie ustawiasz globalnie
+  //   body: JSON.stringify(payload),
+  //   // credentials: 'include', // włącz, jeśli backend ustawia cookie HttpOnly
+  // });
+}
 
   async registerPatient(data: PatientRegistrationRequest): Promise<User> {
-    return this.request<User>('/auth/register/patient', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+     const payload = { ...data, username: data.email }; // <- kluczowa linia
+  return this.request<User>('/auth/register/patient', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
   }
 
   async registerDentist(data: DentistRegistrationRequest): Promise<User> {
@@ -167,9 +208,11 @@ class ApiClient {
     return this.request<DentalRecord>('/api/my/record');
   }
 
-  async getMyProfile(): Promise<PatientProfile> {
-    return this.request<PatientProfile>('/api/my/profile');
-  }
+async getMyProfile(): Promise<PatientProfile> {
+  return this.request<PatientProfile>('/api/my/profile', {
+    credentials: 'include',
+  });
+}
 
   async getMyTreatmentPlans(): Promise<TreatmentPlan[]> {
     return this.request<TreatmentPlan[]>('/api/my/plans');

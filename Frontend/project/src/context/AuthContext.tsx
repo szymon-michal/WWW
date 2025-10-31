@@ -1,7 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '../types/api';
 import { apiClient } from '../lib/api';
+import { PatientProfile } from '../types/api';
 
+
+
+function toUserFromPatient(me: PatientProfile): User {
+  return {
+    id: me.id,
+    email: me.email,
+    role: 'PATIENT',                 // guard tego oczekuje
+    firstName: me.firstName,
+    lastName: me.lastName,
+    createdAt: me.createdAt,         // ← DODANE
+   // updatedAt: me.updatedAt,         // ← DODANE
+
+    // jeśli w Twoim User są jeszcze wymagane pola – dodaj je tutaj:
+    // phone: me.phone ?? '',
+    // avatarUrl: me.avatarUrl ?? '',
+    // status: 'ACTIVE',
+  };
+}
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -29,44 +48,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('auth_token');
-    const userData = localStorage.getItem('user_data');
-    
-    if (token && userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        apiClient.setAuthToken(token);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        logout();
-      }
-    }
-    
-    setIsLoading(false);
-  }, []);
-
-  const login = async (email: string, password: string) => {
+useEffect(() => {
+  (async () => {
     try {
-      const response = await apiClient.login({ email, password });
-      
-      setUser(response.user);
-      apiClient.setAuthToken(response.token);
-      localStorage.setItem('user_data', JSON.stringify(response.user));
-      
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
+      // jeśli masz token w LS, podaj go klientowi
+      const token = localStorage.getItem('auth_token');
+      if (token) apiClient.setAuthToken(token);
+
+      // zawsze spróbuj pobrać profil (token lub cookie)
+      const me = await apiClient.getMyProfile();
+      const u =toUserFromPatient(me);
+
+      setUser(u);
+      localStorage.setItem('user_data', JSON.stringify(u));
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  })();
+}, []);
+
+
+const login = async (email: string, password: string) => {
+  try {
+    const resp: any = await apiClient.login({ email, password }); // mapuje username=email
+console.log('login resp', resp);
+
+
+    // jeśli backend zwraca token w JSON – zapisz go
+    if (resp?.token)         apiClient.setAuthToken(resp.token);
+    if (resp?.accessToken)   apiClient.setAuthToken(resp.accessToken);
+
+    // niezależnie od tokenu – dociągnij profil (token albo cookie)
+    const me = await apiClient.getMyProfile();
+    const u = toUserFromPatient(me);
+    setUser(u);
+    localStorage.setItem('user_data', JSON.stringify(u));
+  } catch (error) {
+    console.error('Login failed:', error);
+    throw error;
+  }
+};
+
 
   const logout = () => {
     setUser(null);
     apiClient.setAuthToken(null);
+    apiClient.setUserId(null);
     localStorage.removeItem('user_data');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_id');
   };
 
   const value: AuthContextType = {

@@ -1,4 +1,5 @@
 // API Types based on OpenAPI schema
+
 export interface User {
   id: string;
   email: string;
@@ -146,6 +147,9 @@ export interface PatientRegistrationRequest {
   phone?: string;
   dateOfBirth: string;
   nationalId?: string;
+
+  // NEW: login będzie wypełniany automatycznie (email)
+  username?: string;
 }
 
 export interface DentistRegistrationRequest {

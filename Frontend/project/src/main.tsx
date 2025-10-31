@@ -4,9 +4,7 @@ import App from './App.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App></App>
-    <h2>Dzialam calym sobom</h2>
+  <StrictMode>  
     <App />
   </StrictMode>
 );

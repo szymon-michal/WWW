@@ -1,6 +1,8 @@
 package com.dentistplus.controller;
 
+import com.dentistplus.dto.PaymentRequest;
 import com.dentistplus.model.*;
+import com.dentistplus.repository.UserRepository;
 import com.dentistplus.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +32,9 @@ public class PatientPortalController {
     
     @Autowired
     private AppointmentService appointmentService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping("/profile")
     @Operation(summary = "Get my profile", description = "Get patient's own profile (ROLE_PATIENT required)")
@@ -71,6 +76,38 @@ public class PatientPortalController {
         return ResponseEntity.ok(appointments);
     }
 
+    @GetMapping("/dentists")
+    @Operation(summary = "Get available dentists", description = "Get list of dentists for booking appointments")
+    public ResponseEntity<List<User>> getAvailableDentists() {
+        List<User> dentists = userRepository.findByRolesContaining("ROLE_DENTIST");
+        return ResponseEntity.ok(dentists);
+    }
+
+    @PostMapping("/appointments")
+    @Operation(summary = "Book new appointment", description = "Create a new appointment (ROLE_PATIENT required)")
+    public ResponseEntity<Appointment> bookAppointment(
+            @RequestParam String dentistId,
+            @RequestParam String appointmentDate,
+            @RequestParam String appointmentType,
+            @Parameter(description = "Patient user ID", required = true)
+            @RequestHeader("X-User-ID") String patientUserId) {
+        
+        Appointment appointment = appointmentService.bookAppointment(patientUserId, dentistId, appointmentDate, appointmentType);
+        return ResponseEntity.ok(appointment);
+    }
+
+    @PutMapping("/appointments/{appointmentId}/reschedule")
+    @Operation(summary = "Reschedule appointment", description = "Reschedule an existing appointment (ROLE_PATIENT required)")
+    public ResponseEntity<Appointment> rescheduleAppointment(
+            @PathVariable String appointmentId,
+            @RequestParam String newDate,
+            @Parameter(description = "Patient user ID", required = true)
+            @RequestHeader("X-User-ID") String patientUserId) {
+        
+        Appointment appointment = appointmentService.rescheduleAppointment(appointmentId, newDate, patientUserId);
+        return ResponseEntity.ok(appointment);
+    }
+
     @GetMapping("/invoices")
     @Operation(summary = "Get my invoices", description = "Get patient's billing history (ROLE_PATIENT required)")
     public ResponseEntity<List<Invoice>> getMyInvoices(
@@ -79,5 +116,16 @@ public class PatientPortalController {
         
         List<Invoice> invoices = invoiceService.getMyInvoices(patientUserId);
         return ResponseEntity.ok(invoices);
+    }
+
+    @PostMapping("/invoices/pay")
+    @Operation(summary = "Pay invoices", description = "Process payment for selected invoices (ROLE_PATIENT required)")
+    public ResponseEntity<List<Invoice>> payInvoices(
+            @RequestBody PaymentRequest paymentRequest,
+            @Parameter(description = "Patient user ID", required = true)
+            @RequestHeader("X-User-ID") String patientUserId) {
+        
+        List<Invoice> updatedInvoices = invoiceService.processPayment(patientUserId, paymentRequest);
+        return ResponseEntity.ok(updatedInvoices);
     }
 }

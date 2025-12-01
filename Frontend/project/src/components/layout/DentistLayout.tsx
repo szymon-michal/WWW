@@ -152,7 +152,10 @@ export const DentistLayout: React.FC = () => {
                     </div>
                   </div>
                   <div className="ml-3 hidden md:block">
-                    <div className="text-base font-medium text-gray-800">Dr. {user?.firstName} {user?.lastName}</div>
+                    <div className="text-base font-medium text-gray-800">
+                      {user?.firstName || user?.email}
+                      {user?.lastName ? ` ${user.lastName}` : ''}
+                    </div>
                     <div className="text-sm font-medium text-gray-500">{user?.role}</div>
                   </div>
                 </div>

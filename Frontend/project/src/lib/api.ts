@@ -109,7 +109,7 @@ private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T
 
   // Authentication
 async login(credentials: LoginRequest): Promise<LoginResponse> {
-  const payload = { username: credentials.email, password: credentials.password };
+  const payload = { username: credentials.username || credentials.email, password: credentials.password };
   const resp = await this.request<any>('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,6 +191,25 @@ async login(credentials: LoginRequest): Promise<LoginResponse> {
     });
   }
 
+  // Dental Records (Dentist)
+  async getDentalRecord(patientId: string): Promise<any> {
+    return this.request<any>(`/api/patients/${patientId}/record`);
+  }
+
+  async updateDentalChart(patientId: string, dentalChart: Record<string, Record<string, string>>): Promise<any> {
+    return this.request<any>(`/api/patients/${patientId}/record/chart`, {
+      method: 'PUT',
+      body: JSON.stringify(dentalChart),
+    });
+  }
+
+  async addRecordAttachment(patientId: string, attachment: { filename: string; fileType: string; storageUrl: string }): Promise<any> {
+    return this.request<any>(`/api/patients/${patientId}/record/attachments`, {
+      method: 'POST',
+      body: JSON.stringify(attachment),
+    });
+  }
+
   // Billing
   async getPatientInvoices(patientId: string): Promise<Invoice[]> {
     return this.request<Invoice[]>(`/api/patients/${patientId}/invoices`);
@@ -222,8 +241,84 @@ async getMyProfile(): Promise<PatientProfile> {
     return this.request<Invoice[]>('/api/my/invoices');
   }
 
+  async payInvoices(invoiceIds: string[], paymentMethod: any): Promise<Invoice[]> {
+    return this.request<Invoice[]>('/api/my/invoices/pay', {
+      method: 'POST',
+      body: JSON.stringify({ invoiceIds, paymentMethod }),
+    });
+  }
+
   async getMyAppointments(): Promise<Appointment[]> {
-    return this.request<Appointment[]>('/api/my/appointments');
+    console.log('API: getMyAppointments called');
+    try {
+      const result = await this.request<Appointment[]>('/api/my/appointments');
+      console.log('API: getMyAppointments result:', result);
+      return result;
+    } catch (error) {
+      console.error('API: getMyAppointments error:', error);
+      throw error;
+    }
+  }
+
+  async rescheduleAppointment(appointmentId: string, newDate: string): Promise<Appointment> {
+    return this.request<Appointment>(`/api/my/appointments/${appointmentId}/reschedule?newDate=${encodeURIComponent(newDate)}`, {
+      method: 'PUT',
+    });
+  }
+
+  async bookAppointment(dentistId: string, appointmentDate: string, appointmentType: string): Promise<Appointment> {
+    return this.request<Appointment>(`/api/my/appointments?dentistId=${dentistId}&appointmentDate=${encodeURIComponent(appointmentDate)}&appointmentType=${encodeURIComponent(appointmentType)}`, {
+      method: 'POST',
+    });
+  }
+
+  // Admin Management
+  async getAllDentists(): Promise<User[]> {
+    return this.request<User[]>('/api/my/dentists');
+  }
+
+  async getAllPatientUsers(): Promise<User[]> {
+    return this.request<User[]>('/api/admin/patients');
+  }
+
+  async createDentist(data: { username: string; firstName: string; lastName: string; email: string; password: string }): Promise<User> {
+    return this.request<User>('/api/admin/dentists', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createPatient(data: { username: string; firstName: string; lastName: string; email: string; password: string }): Promise<User> {
+    return this.request<User>('/api/admin/patients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDentist(dentistId: string, data: { firstName?: string; lastName?: string; email?: string; password?: string }): Promise<User> {
+    return this.request<User>(`/api/admin/dentists/${dentistId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePatientUser(patientId: string, data: { firstName?: string; lastName?: string; email?: string; password?: string }): Promise<User> {
+    return this.request<User>(`/api/admin/patients/${patientId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDentist(dentistId: string): Promise<void> {
+    return this.request<void>(`/api/admin/dentists/${dentistId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deletePatientUser(patientId: string): Promise<void> {
+    return this.request<void>(`/api/admin/patients/${patientId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

@@ -1,5 +1,6 @@
 package com.dentistplus.service;
 
+import com.dentistplus.dto.PaymentRequest;
 import com.dentistplus.exception.ResourceNotFoundException;
 import com.dentistplus.model.Invoice;
 import com.dentistplus.model.PatientProfile;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,9 +79,38 @@ public class InvoiceService {
     public List<Invoice> getMyInvoices(String patientUserId) {
         authService.validateUserRole(patientUserId, "ROLE_PATIENT");
         
-        PatientProfile patient = patientProfileRepository.findByUserId(patientUserId)
+        PatientProfile patient = patientProfileRepository.findByUser_Id(patientUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
 
         return invoiceRepository.findByPatientProfile(patient);
+    }
+
+    public List<Invoice> processPayment(String patientUserId, PaymentRequest paymentRequest) {
+        authService.validateUserRole(patientUserId, "ROLE_PATIENT");
+        
+        PatientProfile patient = patientProfileRepository.findByUser_Id(patientUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
+
+        List<Invoice> updatedInvoices = new ArrayList<>();
+
+        for (String invoiceId : paymentRequest.getInvoiceIds()) {
+            Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with id: " + invoiceId));
+
+            // Verify invoice belongs to this patient
+            if (!invoice.getPatientProfile().getId().equals(patient.getId())) {
+                throw new IllegalArgumentException("Invoice does not belong to this patient");
+            }
+
+            // Process payment (in real app, would integrate with payment gateway)
+            // For now, just mark as PAID
+            invoice.setStatus("PAID");
+            invoice.setUpdatedAt(LocalDateTime.now());
+            
+            Invoice saved = invoiceRepository.save(invoice);
+            updatedInvoices.add(saved);
+        }
+
+        return updatedInvoices;
     }
 }

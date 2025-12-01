@@ -93,7 +93,7 @@ public class DentalRecordService {
     public DentalRecord getMyDentalRecord(String patientUserId) {
         authService.validateUserRole(patientUserId, "ROLE_PATIENT");
         
-        PatientProfile patient = patientProfileRepository.findByUserId(patientUserId)
+        PatientProfile patient = patientProfileRepository.findByUser_Id(patientUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
 
         return dentalRecordRepository.findByPatientProfile(patient)

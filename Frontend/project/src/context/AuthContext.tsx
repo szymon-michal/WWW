@@ -25,7 +25,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -55,12 +55,25 @@ useEffect(() => {
       const token = localStorage.getItem('auth_token');
       if (token) apiClient.setAuthToken(token);
 
-      // zawsze spróbuj pobrać profil (token lub cookie)
-      const me = await apiClient.getMyProfile();
-      const u =toUserFromPatient(me);
+      // Try to restore user from localStorage first
+      const userData = localStorage.getItem('user_data');
+      if (userData) {
+        const u = JSON.parse(userData);
+        setUser(u);
+        setIsLoading(false);
+        return;
+      }
 
-      setUser(u);
-      localStorage.setItem('user_data', JSON.stringify(u));
+      // If no cached user, try to fetch patient profile (only works for patients)
+      try {
+        const me = await apiClient.getMyProfile();
+        const u = toUserFromPatient(me);
+        setUser(u);
+        localStorage.setItem('user_data', JSON.stringify(u));
+      } catch {
+        // Not a patient or no profile endpoint access
+        setUser(null);
+      }
     } catch {
       setUser(null);
     } finally {
@@ -70,21 +83,39 @@ useEffect(() => {
 }, []);
 
 
-const login = async (email: string, password: string) => {
+const login = async (username: string, password: string) => {
   try {
-    const resp: any = await apiClient.login({ email, password }); // mapuje username=email
+    const resp: any = await apiClient.login({ username, password });
 console.log('login resp', resp);
 
+    // Save user ID regardless of role
+    if (resp?.id) {
+      apiClient.setUserId(resp.id);
+    }
 
-    // jeśli backend zwraca token w JSON – zapisz go
-    if (resp?.token)         apiClient.setAuthToken(resp.token);
-    if (resp?.accessToken)   apiClient.setAuthToken(resp.accessToken);
+    // Check if user is a patient by looking at roles
+    const roles = resp?.roles || [];
+    const isPatient = roles.includes('ROLE_PATIENT');
 
-    // niezależnie od tokenu – dociągnij profil (token albo cookie)
-    const me = await apiClient.getMyProfile();
-    const u = toUserFromPatient(me);
-    setUser(u);
-    localStorage.setItem('user_data', JSON.stringify(u));
+    if (isPatient) {
+      // Only fetch patient profile for patients
+      const me = await apiClient.getMyProfile();
+      const u = toUserFromPatient(me);
+      setUser(u);
+      localStorage.setItem('user_data', JSON.stringify(u));
+    } else {
+      // For non-patients (dentists, admins), create a basic user object from login response
+      const u: User = {
+        id: resp.id,
+        email: resp.email,
+        role: roles.includes('ROLE_ADMIN') ? 'ADMIN' : roles.includes('ROLE_DENTIST') ? 'DENTIST' : 'STAFF',
+        firstName: resp.firstName || '',
+        lastName: resp.lastName || '',
+        createdAt: resp.createdAt || new Date().toISOString(),
+      };
+      setUser(u);
+      localStorage.setItem('user_data', JSON.stringify(u));
+    }
   } catch (error) {
     console.error('Login failed:', error);
     throw error;

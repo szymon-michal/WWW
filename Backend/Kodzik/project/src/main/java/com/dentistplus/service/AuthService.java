@@ -25,17 +25,23 @@ public class AuthService {
     private PatientProfileRepository patientProfileRepository;
 
     public User login(LoginRequest loginRequest) {
+        System.out.println("AuthService: Login attempt for username: " + loginRequest.getUsername());
         Optional<User> userOpt = userRepository.findByUsername(loginRequest.getUsername());
         
         if (userOpt.isEmpty()) {
+            System.out.println("AuthService: User not found: " + loginRequest.getUsername());
             throw new UnauthorizedException("Invalid username or password");
         }
         
         User user = userOpt.get();
+        System.out.println("AuthService: User found. Stored password: [" + user.getPassword() + "], Provided password: [" + loginRequest.getPassword() + "]");
+        
         if (!user.getPassword().equals(loginRequest.getPassword())) {
+            System.out.println("AuthService: Password mismatch for user: " + loginRequest.getUsername());
             throw new UnauthorizedException("Invalid username or password");
         }
         
+        System.out.println("AuthService: Login successful for user: " + loginRequest.getUsername());
         return user;
     }
 

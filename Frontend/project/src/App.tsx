@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DentistLayout } from './components/layout/DentistLayout';
 import { PatientLayout } from './components/layout/PatientLayout';
+import { AdminLayout } from './components/layout/AdminLayout';
 
 // Auth pages
 import { LoginPage } from './pages/LoginPage';
@@ -13,6 +14,8 @@ import { RegisterPage } from './pages/RegisterPage';
 
 // Dentist pages
 import { DashboardPage } from './pages/dentist/DashboardPage';
+import { PatientsPage } from './pages/dentist/PatientsPage';
+import { PatientDetailsPage } from './pages/dentist/PatientDetailsPage';
 
 // Patient pages
 import { MyDashboard } from './pages/patient/MyDashboard';
@@ -20,6 +23,9 @@ import { MyAppointments } from './pages/patient/MyAppointments';
 import { MyHealth } from './pages/patient/MyHealth';
 import { MyBilling } from './pages/patient/MyBilling';
 import { MyProfile } from './pages/patient/MyProfile';
+
+// Admin pages
+import { AdminDashboard } from './pages/admin/AdminDashboard';
 
 const AppRoutes: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -42,6 +48,18 @@ const AppRoutes: React.FC = () => {
         <Route index element={<DashboardPage />} />
       </Route>
 
+      <Route
+        path="/patients"
+        element={
+          <ProtectedRoute allowedRoles={['DENTIST', 'STAFF']}>
+            <DentistLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PatientsPage />} />
+        <Route path=":id" element={<PatientDetailsPage />} />
+      </Route>
+
       {/* Patient routes */}
       <Route
         path="/my/*"
@@ -58,6 +76,18 @@ const AppRoutes: React.FC = () => {
         <Route path="profile" element={<MyProfile />} />
       </Route>
 
+      {/* Admin routes */}
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+      </Route>
+
       {/* Root redirect */}
       <Route
         path="/"
@@ -65,6 +95,8 @@ const AppRoutes: React.FC = () => {
           isAuthenticated ? (
             user?.role === 'PATIENT' ? (
               <Navigate to="/my/dashboard" replace />
+            ) : user?.role === 'ADMIN' ? (
+              <Navigate to="/admin" replace />
             ) : (
               <Navigate to="/dashboard" replace />
             )

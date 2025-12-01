@@ -9,10 +9,10 @@ import { Card } from '../components/ui/Card';
 import { validateEmail } from '../lib/utils';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
@@ -27,10 +27,10 @@ const target = !rawFrom || rawFrom === '/login' ? fallback : rawFrom;
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (!username) {
+      newErrors.username = 'Username is required';
+    } else if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
     }
 
     if (!password) {
@@ -52,7 +52,7 @@ const target = !rawFrom || rawFrom === '/login' ? fallback : rawFrom;
     setErrors({});
 
     try {
-await login(email, password);
+await login(username, password);
 console.log('Login OK – go to /');
 navigate('/', { replace: true });
     } catch (error: any) {
@@ -91,12 +91,12 @@ navigate('/', { replace: true });
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="pl-10"
-                error={errors.email}
+                error={errors.username}
               />
             </div>
 

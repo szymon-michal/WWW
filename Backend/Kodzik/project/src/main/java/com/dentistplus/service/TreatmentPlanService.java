@@ -92,7 +92,7 @@ public class TreatmentPlanService {
     public List<TreatmentPlan> getMyTreatmentPlans(String patientUserId) {
         authService.validateUserRole(patientUserId, "ROLE_PATIENT");
         
-        PatientProfile patient = patientProfileRepository.findByUserId(patientUserId)
+        PatientProfile patient = patientProfileRepository.findByUser_Id(patientUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
 
         return treatmentPlanRepository.findByPatientProfile(patient);

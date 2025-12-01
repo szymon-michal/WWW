@@ -38,6 +38,9 @@ public class TreatmentPlan {
         private String notes;
         
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime scheduledDate;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createdAt;
         
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -79,6 +82,9 @@ public class TreatmentPlan {
 
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
+
+        public LocalDateTime getScheduledDate() { return scheduledDate; }
+        public void setScheduledDate(LocalDateTime scheduledDate) { this.scheduledDate = scheduledDate; }
 
         public LocalDateTime getCreatedAt() { return createdAt; }
         public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

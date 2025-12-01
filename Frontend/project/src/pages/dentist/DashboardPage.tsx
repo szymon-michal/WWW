@@ -2,11 +2,13 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, Users, Clock, TrendingUp } from 'lucide-react';
 import { apiClient, queryKeys } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDateTime, getInitials } from '../../lib/utils';
 
 export const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const { data: patients, isLoading: patientsLoading } = useQuery({
     queryKey: queryKeys.patients,
     queryFn: apiClient.getAllPatients,
@@ -20,40 +22,51 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  // Mock data for demo
-  const todayAppointments = [
-    {
-      id: '1',
-      time: '09:00',
-      patient: { firstName: 'John', lastName: 'Doe' },
-      type: 'Cleaning',
-    },
-    {
-      id: '2', 
-      time: '10:30',
-      patient: { firstName: 'Jane', lastName: 'Smith' },
-      type: 'Root Canal',
-    },
-    {
-      id: '3',
-      time: '14:00',
-      patient: { firstName: 'Bob', lastName: 'Johnson' },
-      type: 'Consultation',
-    },
+  // Generate pseudo-random but consistent data per dentist
+  const getDentistSeed = () => {
+    if (!user?.id) return 0;
+    return user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  };
+
+  const seed = getDentistSeed();
+  
+  // Different mock appointments per dentist
+  const allAppointments = [
+    [
+      { id: '1', time: '09:00', patient: { firstName: 'John', lastName: 'Doe' }, type: 'Cleaning' },
+      { id: '2', time: '10:30', patient: { firstName: 'Jane', lastName: 'Smith' }, type: 'Root Canal' },
+      { id: '3', time: '14:00', patient: { firstName: 'Bob', lastName: 'Johnson' }, type: 'Consultation' },
+    ],
+    [
+      { id: '1', time: '08:30', patient: { firstName: 'Alice', lastName: 'Williams' }, type: 'Checkup' },
+      { id: '2', time: '11:00', patient: { firstName: 'Michael', lastName: 'Brown' }, type: 'Filling' },
+    ],
+    [
+      { id: '1', time: '10:00', patient: { firstName: 'Sarah', lastName: 'Davis' }, type: 'Crown Fitting' },
+      { id: '2', time: '13:00', patient: { firstName: 'David', lastName: 'Miller' }, type: 'Extraction' },
+      { id: '3', time: '15:30', patient: { firstName: 'Emma', lastName: 'Wilson' }, type: 'Cleaning' },
+      { id: '4', time: '16:30', patient: { firstName: 'James', lastName: 'Moore' }, type: 'Consultation' },
+    ],
   ];
+
+  const todayAppointments = allAppointments[seed % allAppointments.length];
+  
+  // Different stats per dentist
+  const baseRevenue = 12000 + (seed % 8) * 1500;
+  const basePending = 8 + (seed % 12);
 
   const stats = {
     totalPatients: patients?.length || 0,
     todayAppointments: todayAppointments.length,
-    pendingTreatments: 12,
-    revenue: 15750,
+    pendingTreatments: basePending,
+    revenue: baseRevenue,
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-gray-600">Welcome back, Dr. Smith</p>
+        <p className="mt-2 text-gray-600">Welcome back, Dr. {user?.lastName || 'Doctor'}</p>
       </div>
 
       {/* Stats Grid */}

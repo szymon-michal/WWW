@@ -1,124 +1,45 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, Download, FileText, Calendar, DollarSign } from 'lucide-react';
 import { apiClient, queryKeys } from '../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { PaymentModal } from '../../components/ui/PaymentModal';
 import { formatCurrency, formatDate } from '../../lib/utils';
 
 export const MyBilling: React.FC = () => {
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: queryKeys.myInvoices,
-    queryFn: apiClient.getMyInvoices,
+    queryFn: () => apiClient.getMyInvoices(),
   });
 
   const { data: treatmentPlans, isLoading: plansLoading } = useQuery({
     queryKey: queryKeys.myPlans,
-    queryFn: apiClient.getMyTreatmentPlans,
+    queryFn: () => apiClient.getMyTreatmentPlans(),
   });
 
-  // Mock data for demo
-  const mockInvoices = [
-    {
-      id: '1',
-      invoiceNumber: 'INV-2025-001',
-      totalAmount: 350.00,
-      paidAmount: 350.00,
-      status: 'PAID',
-      dueDate: '2025-10-30T00:00:00Z',
-      createdAt: '2025-10-15T10:00:00Z',
-      lineItems: [
-        {
-          id: '1',
-          description: 'Regular Cleaning',
-          quantity: 1,
-          unitPrice: 150.00,
-          totalPrice: 150.00,
-        },
-        {
-          id: '2',
-          description: 'Fluoride Treatment',
-          quantity: 1,
-          unitPrice: 75.00,
-          totalPrice: 75.00,
-        },
-        {
-          id: '3',
-          description: 'X-ray (Bitewing)',
-          quantity: 2,
-          unitPrice: 62.50,
-          totalPrice: 125.00,
-        },
-      ],
+  const paymentMutation = useMutation({
+    mutationFn: ({ invoiceIds, paymentMethod }: { invoiceIds: string[]; paymentMethod: any }) =>
+      apiClient.payInvoices(invoiceIds, paymentMethod),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myInvoices });
+      alert('Payment processed successfully!');
     },
-    {
-      id: '2',
-      invoiceNumber: 'INV-2025-002',
-      totalAmount: 850.00,
-      paidAmount: 500.00,
-      status: 'SENT',
-      dueDate: '2025-12-15T00:00:00Z',
-      createdAt: '2025-11-01T09:00:00Z',
-      lineItems: [
-        {
-          id: '4',
-          description: 'Composite Filling',
-          quantity: 2,
-          unitPrice: 250.00,
-          totalPrice: 500.00,
-        },
-        {
-          id: '5',
-          description: 'Root Canal Treatment',
-          quantity: 1,
-          unitPrice: 350.00,
-          totalPrice: 350.00,
-        },
-      ],
+    onError: (error: any) => {
+      console.error('Payment error:', error);
     },
-  ];
+  });
 
-  const mockTreatmentPlan = {
-    id: '1',
-    title: 'Comprehensive Treatment Plan',
-    totalCost: 2450.00,
-    procedures: [
-      {
-        id: '1',
-        procedureName: 'Root Canal - Tooth 24',
-        toothNumber: 24,
-        cost: 750.00,
-        status: 'COMPLETED',
-      },
-      {
-        id: '2',
-        procedureName: 'Crown - Tooth 24',
-        toothNumber: 24,
-        cost: 900.00,
-        status: 'PLANNED',
-      },
-      {
-        id: '3',
-        procedureName: 'Composite Filling - Tooth 11',
-        toothNumber: 11,
-        cost: 300.00,
-        status: 'IN_PROGRESS',
-      },
-      {
-        id: '4',
-        procedureName: 'Professional Cleaning',
-        cost: 150.00,
-        status: 'COMPLETED',
-      },
-      {
-        id: '5',
-        procedureName: 'Whitening Treatment',
-        cost: 350.00,
-        status: 'PLANNED',
-      },
-    ],
-  };
+  // Derive values from real data
+  const currentInvoices = invoices ?? [];
+  // Choose active plan if available, else most recent by createdAt
+  const activePlan = (treatmentPlans ?? [])
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .find(p => p.status === 'ACTIVE') || (treatmentPlans && treatmentPlans[0]);
 
   if (invoicesLoading || plansLoading) {
     return (
@@ -128,10 +49,17 @@ export const MyBilling: React.FC = () => {
     );
   }
 
-  const currentInvoices = invoices || mockInvoices;
-  const totalPaid = currentInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
-  const totalOutstanding = currentInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.paidAmount), 0);
-  const totalTreatmentCost = mockTreatmentPlan.totalCost;
+  const totalTreatmentCost = (activePlan?.procedures ?? [])
+    .reduce((sum, p: any) => sum + Number(p?.costEstimate ?? 0), 0);
+  const totalPaid = currentInvoices
+    .filter((inv: any) => String(inv.status).toUpperCase() === 'PAID')
+    .reduce((sum: number, inv: any) => sum + Number(inv.totalAmount ?? 0), 0);
+  const totalOutstanding = Math.max(totalTreatmentCost - totalPaid, 0);
+  const unpaidInvoices = currentInvoices.filter((inv: any) => String(inv.status).toUpperCase() !== 'PAID');
+
+  const handlePayment = async (invoiceIds: string[], paymentMethod: any) => {
+    await paymentMutation.mutateAsync({ invoiceIds, paymentMethod });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,6 +69,10 @@ export const MyBilling: React.FC = () => {
         return 'bg-blue-100 text-blue-800';
       case 'OVERDUE':
         return 'bg-red-100 text-red-800';
+      case 'UNPAID':
+        return 'bg-orange-100 text-orange-800';
+      case 'PARTIAL':
+        return 'bg-amber-100 text-amber-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -225,10 +157,21 @@ export const MyBilling: React.FC = () => {
                   Outstanding Balance: {formatCurrency(totalOutstanding)}
                 </h3>
                 <p className="text-orange-700 mt-1">
-                  You have pending payments. Click below to pay online.
+                  You have pending payments. {unpaidInvoices.length > 0 ? 'Click below to pay online.' : 'No unpaid invoices yet — payments are available when an invoice is issued.'}
                 </p>
               </div>
-              <Button className="bg-orange-600 hover:bg-orange-700">
+              <Button 
+                className="bg-orange-600 hover:bg-orange-700"
+                onClick={() => {
+                  if (unpaidInvoices.length === 0) {
+                    alert('There are no unpaid invoices to pay right now. Please check back once an invoice is issued.');
+                    return;
+                  }
+                  setIsPaymentModalOpen(true);
+                }}
+                disabled={unpaidInvoices.length === 0}
+                title={unpaidInvoices.length === 0 ? 'No unpaid invoices available' : undefined}
+              >
                 <CreditCard className="h-4 w-4 mr-2" />
                 Pay Now
               </Button>
@@ -236,6 +179,13 @@ export const MyBilling: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        invoices={currentInvoices}
+        onPayment={handlePayment}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Treatment Plan */}
@@ -251,12 +201,22 @@ export const MyBilling: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockTreatmentPlan.procedures.map((procedure) => (
+              {(activePlan?.procedures ?? []).map((procedure) => (
                 <div key={procedure.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">{procedure.procedureName}</h4>
-                    {procedure.toothNumber && (
-                      <p className="text-sm text-gray-500">Tooth {procedure.toothNumber}</p>
+                    {(procedure.toothNumber || (procedure.toothNumbers && procedure.toothNumbers.length)) && (
+                      <p className="text-sm text-gray-500">
+                        {procedure.toothNumber
+                          ? `Tooth ${procedure.toothNumber}`
+                          : `Teeth ${(procedure.toothNumbers || []).join(', ')}`}
+                      </p>
+                    )}
+                    {procedure.scheduledDate && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {procedure.status === 'COMPLETED' ? 'Completed: ' : 'Scheduled: '}
+                        {formatDate(procedure.scheduledDate)}
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center space-x-3">
@@ -264,7 +224,7 @@ export const MyBilling: React.FC = () => {
                       {procedure.status.replace('_', ' ')}
                     </span>
                     <span className="font-semibold text-gray-900">
-                      {formatCurrency(procedure.cost)}
+                      {formatCurrency(Number(procedure.costEstimate ?? 0))}
                     </span>
                   </div>
                 </div>
@@ -302,13 +262,13 @@ export const MyBilling: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {currentInvoices.map((invoice) => (
+              {currentInvoices.map((invoice: any) => (
                 <div key={invoice.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h4 className="font-medium text-gray-900">{invoice.invoiceNumber}</h4>
+                      <h4 className="font-medium text-gray-900">{invoice.invoiceNumber || `INV-${(invoice.id || '').slice(-6).toUpperCase()}`}</h4>
                       <p className="text-sm text-gray-500">
-                        {formatDate(invoice.createdAt)}
+                        {formatDate(invoice.createdAt || invoice.issueDate)}
                       </p>
                     </div>
                     <div className="flex items-center space-x-3">
@@ -322,33 +282,27 @@ export const MyBilling: React.FC = () => {
                   </div>
 
                   <div className="space-y-2 mb-3">
-                    {invoice.lineItems.map((item) => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          {item.description} {item.quantity > 1 && `(×${item.quantity})`}
-                        </span>
-                        <span className="text-gray-900">{formatCurrency(item.totalPrice)}</span>
-                      </div>
-                    ))}
+                    {(invoice.lineItems || []).map((item: any, idx: number) => {
+                      const unit = Number(item.cost ?? 0);
+                      const qty = Number(item.quantity ?? 1);
+                      const total = unit * qty;
+                      return (
+                        <div key={item.id || idx} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {item.description} {qty > 1 && `(×${qty})`}
+                          </span>
+                          <span className="text-gray-900">{formatCurrency(total)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="border-t pt-3">
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Total</span>
-                      <span className="font-bold">{formatCurrency(invoice.totalAmount)}</span>
+                      <span className="font-bold">{formatCurrency(Number(invoice.totalAmount ?? 0))}</span>
                     </div>
-                    {invoice.paidAmount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Paid</span>
-                        <span>-{formatCurrency(invoice.paidAmount)}</span>
-                      </div>
-                    )}
-                    {invoice.totalAmount > invoice.paidAmount && (
-                      <div className="flex justify-between text-sm font-medium text-orange-600">
-                        <span>Due</span>
-                        <span>{formatCurrency(invoice.totalAmount - invoice.paidAmount)}</span>
-                      </div>
-                    )}
+                    {/* Optional paid/due display can be added when backend exposes payments */}
                   </div>
                 </div>
               ))}

@@ -28,6 +28,10 @@ public class User {
     @Indexed(unique = true)
     private String email;
     
+    private String firstName;
+    
+    private String lastName;
+    
     @NotEmpty(message = "At least one role is required")
     private List<String> roles;
     
@@ -51,6 +55,16 @@ public class User {
         this.roles = roles;
     }
 
+    public User(String username, String password, String email, String firstName, String lastName, List<String> roles) {
+        this();
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.roles = roles;
+    }
+
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -63,6 +77,12 @@ public class User {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
 
     public List<String> getRoles() { return roles; }
     public void setRoles(List<String> roles) { this.roles = roles; }

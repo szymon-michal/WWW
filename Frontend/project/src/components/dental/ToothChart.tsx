@@ -150,7 +150,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     <Card>
       <div className="space-y-6">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Dental Chart</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Dental Chart - FDI Notation</h3>
           {!readOnly && (
             <p className="text-sm text-gray-600">Click on any tooth to view or update its status</p>
           )}

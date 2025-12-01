@@ -3,7 +3,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'DENTIST' | 'STAFF' | 'PATIENT';
+  role: 'DENTIST' | 'STAFF' | 'PATIENT' | 'ADMIN';
   firstName: string;
   lastName: string;
   createdAt: string;
@@ -129,7 +129,8 @@ export interface Attachment {
 
 // Request/Response types
 export interface LoginRequest {
-  email: string;
+  email?: string;
+  username?: string;
   password: string;
 }
 

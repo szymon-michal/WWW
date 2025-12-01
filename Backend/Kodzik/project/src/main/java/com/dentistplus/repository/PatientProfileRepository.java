@@ -11,6 +11,6 @@ import java.util.Optional;
 @Repository
 public interface PatientProfileRepository extends MongoRepository<PatientProfile, String> {
     Optional<PatientProfile> findByUser(User user);
-    Optional<PatientProfile> findByUserId(String userId);
+    Optional<PatientProfile> findByUser_Id(String userId);
     List<PatientProfile> findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(String firstName, String lastName);
 }

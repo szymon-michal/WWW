@@ -61,7 +61,7 @@ public class PatientService {
     public PatientProfile getMyProfile(String patientUserId) {
         authService.validateUserRole(patientUserId, "ROLE_PATIENT");
         
-        return patientProfileRepository.findByUserId(patientUserId)
+        return patientProfileRepository.findByUser_Id(patientUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
     }
 }

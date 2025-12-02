@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Users, Clock, TrendingUp } from 'lucide-react';
+import { Calendar, Users, Clock } from 'lucide-react';
 import { apiClient, queryKeys } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -9,12 +9,22 @@ import { formatDateTime, getInitials } from '../../lib/utils';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { data: patients, isLoading: patientsLoading } = useQuery({
+  const { data: patients, isLoading: patientsLoading, error: patientsError } = useQuery({
     queryKey: queryKeys.patients,
-    queryFn: apiClient.getAllPatients,
+    queryFn: () => apiClient.getAllPatients(),
   });
 
-  if (patientsLoading) {
+  const { data: allAppointments, isLoading: appointmentsLoading, error: appointmentsError } = useQuery({
+    queryKey: queryKeys.dentistAppointments,
+    queryFn: () => apiClient.getDentistAppointments(),
+  });
+
+  const { data: todayAppointments, isLoading: todayLoading, error: todayError } = useQuery({
+    queryKey: queryKeys.dentistTodayAppointments,
+    queryFn: () => apiClient.getDentistTodayAppointments(),
+  });
+
+  if (patientsLoading || appointmentsLoading || todayLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <LoadingSpinner size="lg" />
@@ -22,44 +32,36 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  // Generate pseudo-random but consistent data per dentist
-  const getDentistSeed = () => {
-    if (!user?.id) return 0;
-    return user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  };
+  if (patientsError || appointmentsError || todayError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold mb-2">Error loading dashboard data</p>
+          <p className="text-sm text-gray-600">{(patientsError || appointmentsError || todayError)?.toString()}</p>
+        </div>
+      </div>
+    );
+  }
 
-  const seed = getDentistSeed();
+  // Calculate stats from real data
+  const scheduledAppointments = (allAppointments || []).filter(
+    apt => apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED'
+  );
   
-  // Different mock appointments per dentist
-  const allAppointments = [
-    [
-      { id: '1', time: '09:00', patient: { firstName: 'John', lastName: 'Doe' }, type: 'Cleaning' },
-      { id: '2', time: '10:30', patient: { firstName: 'Jane', lastName: 'Smith' }, type: 'Root Canal' },
-      { id: '3', time: '14:00', patient: { firstName: 'Bob', lastName: 'Johnson' }, type: 'Consultation' },
-    ],
-    [
-      { id: '1', time: '08:30', patient: { firstName: 'Alice', lastName: 'Williams' }, type: 'Checkup' },
-      { id: '2', time: '11:00', patient: { firstName: 'Michael', lastName: 'Brown' }, type: 'Filling' },
-    ],
-    [
-      { id: '1', time: '10:00', patient: { firstName: 'Sarah', lastName: 'Davis' }, type: 'Crown Fitting' },
-      { id: '2', time: '13:00', patient: { firstName: 'David', lastName: 'Miller' }, type: 'Extraction' },
-      { id: '3', time: '15:30', patient: { firstName: 'Emma', lastName: 'Wilson' }, type: 'Cleaning' },
-      { id: '4', time: '16:30', patient: { firstName: 'James', lastName: 'Moore' }, type: 'Consultation' },
-    ],
-  ];
-
-  const todayAppointments = allAppointments[seed % allAppointments.length];
+  const completedToday = (todayAppointments || []).filter(
+    apt => apt.status === 'COMPLETED'
+  ).length;
   
-  // Different stats per dentist
-  const baseRevenue = 12000 + (seed % 8) * 1500;
-  const basePending = 8 + (seed % 12);
+  const remainingToday = (todayAppointments || []).filter(
+    apt => apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED'
+  ).length;
 
   const stats = {
     totalPatients: patients?.length || 0,
-    todayAppointments: todayAppointments.length,
-    pendingTreatments: basePending,
-    revenue: baseRevenue,
+    todayAppointments: todayAppointments?.length || 0,
+    pendingTreatments: scheduledAppointments.length,
+    completedToday,
+    remainingToday,
   };
 
   return (
@@ -70,55 +72,48 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-900">Total Patients</CardTitle>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Users className="h-5 w-5 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPatients}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-blue-900">{stats.totalPatients}</div>
+            <p className="text-xs text-blue-600">
               +12% from last month
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Appointments</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-900">Today's Appointments</CardTitle>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Calendar className="h-5 w-5 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.todayAppointments}</div>
-            <p className="text-xs text-muted-foreground">
-              3 completed, 0 remaining
+            <div className="text-2xl font-bold text-green-900">{stats.todayAppointments}</div>
+            <p className="text-xs text-green-600">
+              {stats.completedToday} completed, {stats.remainingToday} remaining
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Treatments</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-purple-900">Pending Treatments</CardTitle>
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Clock className="h-5 w-5 text-purple-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingTreatments}</div>
-            <p className="text-xs text-muted-foreground">
-              Across 8 patients
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">PLN {stats.revenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              +8% from last month
+            <div className="text-2xl font-bold text-purple-900">{stats.pendingTreatments}</div>
+            <p className="text-xs text-purple-600">
+              Scheduled appointments
             </p>
           </CardContent>
         </Card>
@@ -126,33 +121,55 @@ export const DashboardPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Today's Schedule */}
-        <Card>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 text-green-600 mr-2" />
+              Today's Schedule
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-blue-600">
-                        {getInitials(appointment.patient.firstName, appointment.patient.lastName)}
+              {(todayAppointments || []).map((appointment) => {
+                const patientName = `${appointment.patientProfile?.firstName || 'Unknown'} ${appointment.patientProfile?.lastName || 'Patient'}`;
+                const appointmentTime = new Date(appointment.appointmentDate).toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+                
+                return (
+                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100 hover:shadow-md transition-shadow">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-sm font-medium text-white">
+                          {getInitials(appointment.patientProfile?.firstName || 'U', appointment.patientProfile?.lastName || 'P')}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {patientName}
+                        </p>
+                        <p className="text-sm text-green-600 font-medium">{appointment.appointmentType}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                        appointment.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status}
                       </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {appointment.patient.firstName} {appointment.patient.lastName}
-                      </p>
-                      <p className="text-sm text-gray-500">{appointment.type}</p>
+                      <div className="text-sm font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                        {appointmentTime}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {appointment.time}
-                  </div>
-                </div>
-              ))}
-              {todayAppointments.length === 0 && (
+                );
+              })}
+              {(!todayAppointments || todayAppointments.length === 0) && (
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">No appointments scheduled for today</p>
@@ -162,37 +179,68 @@ export const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Patients */}
-        <Card>
+        {/* Pending Treatments */}
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader>
-            <CardTitle>Recent Patients</CardTitle>
+            <CardTitle className="flex items-center">
+              <Clock className="h-5 w-5 text-purple-600 mr-2" />
+              Pending Treatments
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {patients?.slice(0, 5).map((patient) => (
-                <div key={patient.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-green-600">
-                        {getInitials(patient.firstName, patient.lastName)}
+              {scheduledAppointments
+                .sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime())
+                .slice(0, 5)
+                .map((appointment) => {
+                const patientName = `${appointment.patientProfile?.firstName || 'Unknown'} ${appointment.patientProfile?.lastName || 'Patient'}`;
+                const appointmentDate = new Date(appointment.appointmentDate);
+                const isUpcoming = appointmentDate > new Date();
+                const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: appointmentDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                });
+                const formattedTime = appointmentDate.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+                
+                return (
+                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100 hover:shadow-md transition-shadow">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-sm font-medium text-white">
+                          {getInitials(appointment.patientProfile?.firstName || 'U', appointment.patientProfile?.lastName || 'P')}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {patientName}
+                        </p>
+                        <p className="text-sm text-purple-600 font-medium">{appointment.appointmentType}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end space-y-1">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                        appointment.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status}
                       </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {patient.firstName} {patient.lastName}
-                      </p>
-                      <p className="text-sm text-gray-500">{patient.email}</p>
+                      <div className="text-xs font-semibold text-purple-700">
+                        {formattedDate} • {formattedTime}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {formatDateTime(patient.createdAt)}
-                  </div>
-                </div>
-              ))}
-              {(!patients || patients.length === 0) && (
+                );
+              })}
+              {scheduledAppointments.length === 0 && (
                 <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No patients registered yet</p>
+                  <Clock className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No pending treatments</p>
                 </div>
               )}
             </div>

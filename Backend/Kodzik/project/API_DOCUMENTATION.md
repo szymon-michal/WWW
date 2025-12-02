@@ -348,8 +348,61 @@ http://localhost:8080/swagger-ui.html
     "dentist": {
       "id": "dentist123",
       "username": "dr.smith",
+      "firstName": "John",
+      "lastName": "Smith",
       "email": "dr.smith@dentistplus.com"
     }
+  }
+]
+```
+
+### POST /api/my/appointments
+**Description**: Book a new appointment  
+**Access**: ROLE_PATIENT  
+**Headers**: `X-User-ID: {patientUserId}`  
+**Request Body**:
+```json
+{
+  "dentistId": "dentist123",
+  "appointmentDate": "2024-02-15T14:30:00Z",
+  "appointmentType": "Regular Checkup"
+}
+```
+**Success Response**: Created Appointment object
+
+### PUT /api/my/appointments/{appointmentId}/reschedule
+**Description**: Reschedule an existing appointment  
+**Access**: ROLE_PATIENT  
+**Headers**: `X-User-ID: {patientUserId}`  
+**Request Body**:
+```json
+{
+  "newDate": "2024-02-20T14:30:00Z"
+}
+```
+**Success Response**: Updated Appointment object
+
+### PUT /api/my/appointments/{appointmentId}/cancel
+**Description**: Cancel an appointment  
+**Access**: ROLE_PATIENT  
+**Headers**: `X-User-ID: {patientUserId}`  
+**Success Response**: Updated Appointment object with status "CANCELLED"
+
+### GET /api/my/dentists
+**Description**: Get list of available dentists  
+**Access**: ROLE_PATIENT  
+**Headers**: `X-User-ID: {patientUserId}`  
+**Success Response**:
+```json
+[
+  {
+    "id": "dentist123",
+    "username": "dr.smith",
+    "firstName": "John",
+    "lastName": "Smith",
+    "email": "dr.smith@dentistplus.com",
+    "roles": ["ROLE_DENTIST"],
+    "createdAt": "2024-01-15 10:30:00"
   }
 ]
 ```
@@ -359,6 +412,94 @@ http://localhost:8080/swagger-ui.html
 **Access**: ROLE_PATIENT  
 **Headers**: `X-User-ID: {patientUserId}`  
 **Success Response**: Array of Invoice objects
+
+### POST /api/my/invoices/pay
+**Description**: Pay selected invoices  
+**Access**: ROLE_PATIENT  
+**Headers**: `X-User-ID: {patientUserId}`  
+**Request Body**:
+```json
+{
+  "invoiceIds": ["invoice123", "invoice456"],
+  "paymentMethod": {
+    "type": "CARD",
+    "cardDetails": {
+      "cardNumber": "4111111111111111",
+      "cardholderName": "John Doe",
+      "expiryMonth": "12",
+      "expiryYear": "25",
+      "cvv": "123"
+    }
+  }
+}
+```
+**Success Response**: Payment confirmation
+
+---
+
+## Dentist Portal Endpoints
+
+### GET /api/dentist/appointments
+**Description**: Get all appointments for the logged-in dentist  
+**Access**: ROLE_DENTIST  
+**Headers**: `X-User-ID: {dentistUserId}`  
+**Success Response**:
+```json
+[
+  {
+    "id": "apt123",
+    "patientProfile": {
+      "id": "patient123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "contactPhone": "555-0101"
+    },
+    "appointmentDate": "2024-02-15 14:30:00",
+    "appointmentType": "Regular Checkup",
+    "status": "SCHEDULED",
+    "notes": "Routine examination",
+    "durationMinutes": 60
+  }
+]
+```
+
+### GET /api/dentist/appointments/today
+**Description**: Get today's appointments for the logged-in dentist  
+**Access**: ROLE_DENTIST  
+**Headers**: `X-User-ID: {dentistUserId}`  
+**Success Response**: Array of Appointment objects (same format as above)
+
+---
+
+## Admin Endpoints
+
+### GET /api/admin/patients
+**Description**: Get all patient users (admin view)  
+**Access**: ROLE_ADMIN  
+**Headers**: `X-User-ID: {adminUserId}`  
+**Success Response**: Array of User objects with ROLE_PATIENT
+
+### POST /api/admin/dentists
+**Description**: Create a new dentist account  
+**Access**: ROLE_ADMIN  
+**Headers**: `X-User-ID: {adminUserId}`  
+**Request Body**:
+```json
+{
+  "username": "dr.jones",
+  "firstName": "Sarah",
+  "lastName": "Jones",
+  "email": "dr.jones@dentistplus.com",
+  "password": "password123"
+}
+```
+**Success Response**: Created User object with ROLE_DENTIST
+
+### DELETE /api/admin/patients/{patientId}
+**Description**: Delete a patient account  
+**Access**: ROLE_ADMIN  
+**Headers**: `X-User-ID: {adminUserId}`  
+**Success Response**: 204 No Content
 
 ---
 

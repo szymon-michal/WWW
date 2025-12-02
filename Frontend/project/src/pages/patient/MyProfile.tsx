@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Mail, Phone, Calendar, CreditCard, Shield, Eye, EyeOff, Check } from 'lucide-react';
 import { apiClient, queryKeys } from '../../lib/api';
@@ -11,6 +11,11 @@ import { calculateAge, validateEmail } from '../../lib/utils';
 export const MyProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [consents, setConsents] = useState({
+    marketing: true,
+    dataProcessing: true,
+    thirdParty: false,
+  });
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -37,21 +42,24 @@ export const MyProfile: React.FC = () => {
 
   const { data: profile, isLoading } = useQuery({
     queryKey: queryKeys.myProfile,
-    queryFn: apiClient.getMyProfile,
-    onSuccess: (data) => {
-      setFormData({
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        dateOfBirth: data.dateOfBirth || '',
-        nationalId: data.nationalId || '',
-        address: data.address || '',
-        emergencyContact: data.emergencyContact || '',
-        insuranceNumber: data.insuranceNumber || '',
-      });
-    },
+    queryFn: () => apiClient.getMyProfile(),
   });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        email: profile.email || '',
+        phone: profile.contactPhone || profile.phone || '',
+        dateOfBirth: profile.dateOfBirth || '',
+        nationalId: profile.nationalId || '',
+        address: profile.address || '',
+        emergencyContact: profile.emergencyContact || '',
+        insuranceNumber: profile.insuranceNumber || profile.insuranceDetails || '',
+      });
+    }
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: Partial<typeof formData>) => 
@@ -135,12 +143,12 @@ export const MyProfile: React.FC = () => {
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
         email: profile.email || '',
-        phone: profile.phone || '',
+        phone: profile.contactPhone || profile.phone || '',
         dateOfBirth: profile.dateOfBirth || '',
         nationalId: profile.nationalId || '',
         address: profile.address || '',
         emergencyContact: profile.emergencyContact || '',
-        insuranceNumber: profile.insuranceNumber || '',
+        insuranceNumber: profile.insuranceNumber || profile.insuranceDetails || '',
       });
     }
     setIsEditing(false);
@@ -411,13 +419,14 @@ export const MyProfile: React.FC = () => {
                 <h4 className="font-medium text-gray-900">Marketing Communications</h4>
                 <p className="text-sm text-gray-500">Receive appointment reminders and health tips</p>
               </div>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  defaultChecked
+                  checked={consents.marketing}
+                  onChange={(e) => setConsents(prev => ({ ...prev, marketing: e.target.checked }))}
                   className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-600">Enabled</span>
+                <span className="ml-2 text-sm text-gray-600">{consents.marketing ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
 
@@ -426,13 +435,14 @@ export const MyProfile: React.FC = () => {
                 <h4 className="font-medium text-gray-900">Data Processing</h4>
                 <p className="text-sm text-gray-500">Allow processing of health data for treatment</p>
               </div>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  defaultChecked
+                  checked={consents.dataProcessing}
+                  onChange={(e) => setConsents(prev => ({ ...prev, dataProcessing: e.target.checked }))}
                   className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-600">Enabled</span>
+                <span className="ml-2 text-sm text-gray-600">{consents.dataProcessing ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
 
@@ -441,12 +451,14 @@ export const MyProfile: React.FC = () => {
                 <h4 className="font-medium text-gray-900">Third-party Sharing</h4>
                 <p className="text-sm text-gray-500">Share data with insurance providers</p>
               </div>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
+                  checked={consents.thirdParty}
+                  onChange={(e) => setConsents(prev => ({ ...prev, thirdParty: e.target.checked }))}
                   className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-600">Disabled</span>
+                <span className="ml-2 text-sm text-gray-600">{consents.thirdParty ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
           </div>

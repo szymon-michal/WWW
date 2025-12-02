@@ -105,8 +105,9 @@ export const MyDashboard: React.FC = () => {
 
   const invoiceEvents = (invoices || []).map((inv: any) => {
     const status = String(inv.status || '').toUpperCase();
+    const eventType: 'payment' | 'invoice' = status === 'PAID' ? 'payment' : 'invoice';
     const base = {
-      type: (status === 'PAID' ? 'payment' : 'invoice') as const,
+      type: eventType,
       date: inv.issueDate || inv.updatedAt || inv.createdAt,
       amount: Number(inv.totalAmount ?? 0),
       invoiceNumber: inv.invoiceNumber || `INV-${(inv.id || '').slice(-6).toUpperCase()}`,
@@ -164,12 +165,16 @@ export const MyDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="flex space-x-3">
-                <Button variant="outline" size="sm">
-                  Reschedule
-                </Button>
-                <Button size="sm">
-                  View Details
-                </Button>
+                <Link to={`/my/appointments?highlight=${quickStats.nextAppointment.id}`}>
+                  <Button variant="outline" size="sm">
+                    Reschedule
+                  </Button>
+                </Link>
+                <Link to={`/my/appointments?highlight=${quickStats.nextAppointment.id}`}>
+                  <Button size="sm">
+                    View Details
+                  </Button>
+                </Link>
               </div>
             </div>
           </CardContent>
@@ -292,13 +297,13 @@ export const MyDashboard: React.FC = () => {
                   {formatCurrency(thisYearPaid)}
                 </span>
               </div>
-              <div className="pt-4 border-t space-y-2">
+              <div className="pt-4 border-t">
                 <Link to="/my/billing">
                   <Button variant="secondary" className="w-full">
                     Pay Outstanding Balance
                   </Button>
                 </Link>
-                <Link to="/my/billing">
+                <Link to="/my/billing" className="block mt-1">
                   <Button variant="outline" className="w-full">
                     View All Invoices
                   </Button>

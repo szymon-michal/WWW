@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, User, MapPin, Phone, CreditCard as Edit, Trash2, X } from 'lucide-react';
 import { apiClient, queryKeys } from '../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -9,9 +10,12 @@ import { Modal } from '../../components/ui/Modal';
 import { formatDateTime, formatDate } from '../../lib/utils';
 
 export const MyAppointments: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showBookModal, setShowBookModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('');
   const [newDate, setNewDate] = useState('');
   const [bookingDate, setBookingDate] = useState('');
@@ -30,13 +34,6 @@ export const MyAppointments: React.FC = () => {
     queryKey: ['dentists'],
     queryFn: () => apiClient.getAllDentists(),
   });
-
-  console.log('MyAppointments - isLoading:', isLoading);
-  console.log('MyAppointments - queryError:', queryError);
-  console.log('MyAppointments - appointments data:', appointments);
-  console.log('MyAppointments - appointments count:', appointments?.length);
-  console.log('MyAppointments - dentists data:', dentists);
-  console.log('MyAppointments - dentists count:', dentists?.length);
 
   const rescheduleMutation = useMutation({
     mutationFn: ({ appointmentId, newDate }: { appointmentId: string; newDate: string }) =>
@@ -65,6 +62,18 @@ export const MyAppointments: React.FC = () => {
     },
     onError: (error: any) => {
       setError(error?.message || 'Failed to book appointment');
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (appointmentId: string) => apiClient.cancelAppointment(appointmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myAppointments });
+      setShowCancelModal(false);
+      setError(null);
+    },
+    onError: (error: any) => {
+      setError(error?.message || 'Failed to cancel appointment');
     },
   });
 
@@ -104,14 +113,24 @@ export const MyAppointments: React.FC = () => {
     });
   };
 
-  // Filter appointments by status
-  const upcomingAppointments = (appointments || []).filter((apt: any) => 
-    apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED'
-  );
+  const handleCancelClick = (appointmentId: string) => {
+    setSelectedAppointmentId(appointmentId);
+    setShowCancelModal(true);
+    setError(null);
+  };
 
-  const pastAppointments = (appointments || []).filter((apt: any) => 
-    apt.status === 'COMPLETED' || apt.status === 'CANCELLED'
-  );
+  const handleCancelConfirm = () => {
+    cancelMutation.mutate(selectedAppointmentId);
+  };
+
+  // Filter appointments by status
+  const upcomingAppointments = (appointments || [])
+    .filter((apt: any) => apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED')
+    .sort((a: any, b: any) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime());
+
+  const pastAppointments = (appointments || [])
+    .filter((apt: any) => apt.status === 'COMPLETED' || apt.status === 'CANCELLED')
+    .sort((a: any, b: any) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
 
   if (isLoading) {
     return (
@@ -144,8 +163,10 @@ export const MyAppointments: React.FC = () => {
       ? `Dr. ${appointment.dentist.firstName} ${appointment.dentist.lastName}`
       : 'Unknown Dentist';
     
+    const isHighlighted = highlightId === appointment.id;
+    
     return (
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className={`transition-shadow ${isHighlighted ? 'border-2 border-blue-500 shadow-lg' : 'hover:shadow-md'}`}>
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -198,7 +219,11 @@ export const MyAppointments: React.FC = () => {
                     <Edit className="h-4 w-4 mr-1" />
                     Reschedule
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleCancelClick(appointment.id)}
+                  >
                     <Trash2 className="h-4 w-4 mr-1" />
                     Cancel
                   </Button>
@@ -472,6 +497,50 @@ export const MyAppointments: React.FC = () => {
                 {bookMutation.isPending ? 'Booking...' : 'Book Appointment'}
               </Button>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cancel Confirmation Modal */}
+      <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Cancel Appointment</h2>
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="mb-6">
+            <p className="text-gray-700">
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </p>
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelModal(false)}
+              disabled={cancelMutation.isPending}
+            >
+              Keep Appointment
+            </Button>
+            <Button
+              onClick={handleCancelConfirm}
+              disabled={cancelMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {cancelMutation.isPending ? 'Cancelling...' : 'Yes, Cancel Appointment'}
+            </Button>
           </div>
         </div>
       </Modal>

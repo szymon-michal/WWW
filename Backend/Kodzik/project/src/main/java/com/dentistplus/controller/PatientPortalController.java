@@ -108,6 +108,17 @@ public class PatientPortalController {
         return ResponseEntity.ok(appointment);
     }
 
+    @PutMapping("/appointments/{appointmentId}/cancel")
+    @Operation(summary = "Cancel appointment", description = "Cancel an existing appointment (ROLE_PATIENT required)")
+    public ResponseEntity<Appointment> cancelAppointment(
+            @PathVariable String appointmentId,
+            @Parameter(description = "Patient user ID", required = true)
+            @RequestHeader("X-User-ID") String patientUserId) {
+        
+        Appointment appointment = appointmentService.cancelAppointment(appointmentId, patientUserId);
+        return ResponseEntity.ok(appointment);
+    }
+
     @GetMapping("/invoices")
     @Operation(summary = "Get my invoices", description = "Get patient's billing history (ROLE_PATIENT required)")
     public ResponseEntity<List<Invoice>> getMyInvoices(

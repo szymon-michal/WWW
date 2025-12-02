@@ -34,22 +34,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [cvv, setCvv] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  if (!isOpen) return null;
-
-  const unpaidInvoices = invoices.filter(inv => inv.status !== 'PAID');
-  
-  const totalSelected = unpaidInvoices
-    .filter(inv => selectedInvoiceIds.includes(inv.id))
-    .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
-
-  const toggleInvoice = (invoiceId: string) => {
-    setSelectedInvoiceIds(prev =>
-      prev.includes(invoiceId)
-        ? prev.filter(id => id !== invoiceId)
-        : [...prev, invoiceId]
-    );
-  };
-
   // ----- Validation helpers -----
   const luhnCheck = (num: string) => {
     let sum = 0;
@@ -119,6 +103,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const formValid = useMemo(() => {
     return !cardNumberError && !nameError && !expiryError && !cvvError && selectedInvoiceIds.length > 0;
   }, [cardNumberError, nameError, expiryError, cvvError, selectedInvoiceIds.length]);
+
+  const unpaidInvoices = invoices.filter(inv => inv.status !== 'PAID');
+  
+  const totalSelected = unpaidInvoices
+    .filter(inv => selectedInvoiceIds.includes(inv.id))
+    .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+
+  const toggleInvoice = (invoiceId: string) => {
+    setSelectedInvoiceIds(prev =>
+      prev.includes(invoiceId)
+        ? prev.filter(id => id !== invoiceId)
+        : [...prev, invoiceId]
+    );
+  };
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

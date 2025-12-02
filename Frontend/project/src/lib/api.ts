@@ -266,6 +266,12 @@ async getMyProfile(): Promise<PatientProfile> {
     });
   }
 
+  async cancelAppointment(appointmentId: string): Promise<Appointment> {
+    return this.request<Appointment>(`/api/my/appointments/${appointmentId}/cancel`, {
+      method: 'PUT',
+    });
+  }
+
   async bookAppointment(dentistId: string, appointmentDate: string, appointmentType: string): Promise<Appointment> {
     return this.request<Appointment>(`/api/my/appointments?dentistId=${dentistId}&appointmentDate=${encodeURIComponent(appointmentDate)}&appointmentType=${encodeURIComponent(appointmentType)}`, {
       method: 'POST',
@@ -275,6 +281,14 @@ async getMyProfile(): Promise<PatientProfile> {
   // Admin Management
   async getAllDentists(): Promise<User[]> {
     return this.request<User[]>('/api/my/dentists');
+  }
+
+  async getDentistAppointments(): Promise<Appointment[]> {
+    return this.request<Appointment[]>('/api/dentist/appointments');
+  }
+
+  async getDentistTodayAppointments(): Promise<Appointment[]> {
+    return this.request<Appointment[]>('/api/dentist/appointments/today');
   }
 
   async getAllPatientUsers(): Promise<User[]> {
@@ -348,6 +362,10 @@ export const queryKeys = {
   patient: (id: string) => ['patients', id] as const,
   patientTreatmentPlans: (id: string) => ['patients', id, 'plans'] as const,
   patientInvoices: (id: string) => ['patients', id, 'invoices'] as const,
+  
+  // Dentist
+  dentistAppointments: ['dentist', 'appointments'] as const,
+  dentistTodayAppointments: ['dentist', 'appointments', 'today'] as const,
   
   // Patient Portal
   myProfile: ['my', 'profile'] as const,

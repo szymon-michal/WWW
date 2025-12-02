@@ -70,6 +70,37 @@ public class AppointmentService {
         return appointmentRepository.save(appointment);
     }
 
+    public Appointment cancelAppointment(String appointmentId, String patientUserId) {
+        authService.validateUserRole(patientUserId, "ROLE_PATIENT");
+        
+        // Get the appointment
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with id: " + appointmentId));
+        
+        // Verify the appointment belongs to this patient
+        PatientProfile patient = patientProfileRepository.findByUser_Id(patientUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
+        
+        if (!appointment.getPatientProfile().getId().equals(patient.getId())) {
+            throw new UnauthorizedException("You can only cancel your own appointments");
+        }
+        
+        // Check if appointment can be cancelled (not already completed or cancelled)
+        if ("COMPLETED".equals(appointment.getStatus())) {
+            throw new IllegalArgumentException("Cannot cancel completed appointments");
+        }
+        
+        if ("CANCELLED".equals(appointment.getStatus())) {
+            throw new IllegalArgumentException("Appointment is already cancelled");
+        }
+        
+        // Update the appointment status to CANCELLED
+        appointment.setStatus("CANCELLED");
+        appointment.setUpdatedAt(LocalDateTime.now());
+        
+        return appointmentRepository.save(appointment);
+    }
+
     public Appointment bookAppointment(String patientUserId, String dentistId, String appointmentDateStr, String appointmentType) {
         authService.validateUserRole(patientUserId, "ROLE_PATIENT");
         
@@ -95,5 +126,29 @@ public class AppointmentService {
         appointment.setDurationMinutes(30); // Default 30 minutes
         
         return appointmentRepository.save(appointment);
+    }
+
+    public List<Appointment> getDentistAppointments(String dentistUserId) {
+        authService.validateUserRole(dentistUserId, "ROLE_DENTIST");
+        
+        User dentist = userRepository.findById(dentistUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dentist not found"));
+        
+        return appointmentRepository.findByDentist(dentist);
+    }
+
+    public List<Appointment> getDentistTodayAppointments(String dentistUserId) {
+        authService.validateUserRole(dentistUserId, "ROLE_DENTIST");
+        
+        User dentist = userRepository.findById(dentistUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dentist not found"));
+        
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        
+        return appointmentRepository.findByAppointmentDateBetween(startOfDay, endOfDay)
+            .stream()
+            .filter(apt -> apt.getDentist() != null && apt.getDentist().getId().equals(dentist.getId()))
+            .toList();
     }
 }

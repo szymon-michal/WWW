@@ -29,8 +29,21 @@ export interface PatientProfile {
 
 export interface DentalRecord {
   id: string;
-  patientId: string;
-  teeth: ToothRecord[];
+  patientId?: string;
+  patientProfile?: PatientProfile;
+  dentalChart?: Record<string, Record<string, string>>;
+  attachments?: Array<{
+    filename: string;
+    fileType: string;
+    uploadDate: string;
+    storageUrl: string;
+  }>;
+  generalNotes?: Array<{
+    note: string;
+    timestamp: string;
+    dentistName: string;
+  }>;
+  teeth?: ToothRecord[];
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -97,14 +110,19 @@ export interface LineItem {
 
 export interface Appointment {
   id: string;
-  patientId: string;
-  dentistId: string;
+  patientId?: string;
+  patientProfile?: PatientProfile;
+  dentistId?: string;
+  dentist?: User;
   appointmentDate: string;
-  duration: number;
-  type: string;
+  duration?: number;
+  durationMinutes?: number;
+  type?: string;
+  appointmentType?: string;
   status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   notes?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ClinicalNote {

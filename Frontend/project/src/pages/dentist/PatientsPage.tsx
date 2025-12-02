@@ -82,16 +82,16 @@ export const PatientsPage: React.FC = () => {
       )}
 
       {/* Search Bar */}
-      <Card className="mb-6">
+      <Card className="mb-6 border-green-200 bg-gradient-to-r from-green-50 to-blue-50 shadow-md">
         <div className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-600" />
             <input
               type="text"
               placeholder="Search patients by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
             />
           </div>
         </div>
@@ -99,29 +99,29 @@ export const PatientsPage: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card>
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg hover:shadow-xl transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Patients</p>
-                <p className="text-3xl font-bold text-gray-900">{patients?.length || 0}</p>
+                <p className="text-sm font-medium text-blue-900">Total Patients</p>
+                <p className="text-3xl font-bold text-blue-900">{patients?.length || 0}</p>
               </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
+                <Users className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>
         </Card>
         
-        <Card>
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg hover:shadow-xl transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Search Results</p>
-                <p className="text-3xl font-bold text-gray-900">{filteredPatients.length}</p>
+                <p className="text-sm font-medium text-purple-900">Search Results</p>
+                <p className="text-3xl font-bold text-purple-900">{filteredPatients.length}</p>
               </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <Search className="h-6 w-6 text-purple-600" />
+              <div className="h-12 w-12 bg-purple-500 rounded-full flex items-center justify-center shadow-md">
+                <Search className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>
@@ -129,7 +129,7 @@ export const PatientsPage: React.FC = () => {
       </div>
 
       {/* Patients List */}
-      <Card>
+      <Card className="shadow-lg hover:shadow-xl transition-shadow">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -163,12 +163,12 @@ export const PatientsPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredPatients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-gray-50">
+                  <tr key={patient.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-600">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-md">
+                            <span className="text-sm font-medium text-white">
                               {getInitials(patient.firstName, patient.lastName)}
                             </span>
                           </div>
@@ -211,7 +211,7 @@ export const PatientsPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center"
+                          className="flex items-center hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-colors"
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View Profile

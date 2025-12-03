@@ -322,7 +322,25 @@ export const MyAppointments: React.FC = () => {
                   <p className="text-gray-500 mb-4">
                     You don't have any scheduled appointments.
                   </p>
-                  <Button>
+                  <Button
+                    onClick={() => {
+                      setShowBookModal(true);
+                      setError(null);
+                      // Set default date to tomorrow
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      tomorrow.setHours(9, 0, 0, 0);
+                      const localDate = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000)
+                        .toISOString()
+                        .slice(0, 16);
+                      setBookingDate(localDate);
+                      // Set default dentist if available
+                      if (dentists && dentists.length > 0) {
+                        const firstDentist = dentists.find((d: any) => d.roles?.includes('ROLE_DENTIST'));
+                        if (firstDentist) setSelectedDentist(firstDentist.id);
+                      }
+                    }}
+                  >
                     <Calendar className="h-4 w-4 mr-2" />
                     Schedule an Appointment
                   </Button>

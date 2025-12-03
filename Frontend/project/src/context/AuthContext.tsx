@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '../types/api';
-import { apiClient } from '../lib/api';
+import { apiClient, queryClient } from '../lib/api';
 import { PatientProfile } from '../types/api';
 
 
@@ -85,6 +85,9 @@ useEffect(() => {
 
 const login = async (username: string, password: string) => {
   try {
+    // Clear all cached queries before logging in
+    queryClient.clear();
+    
     const resp: any = await apiClient.login({ username, password });
 console.log('login resp', resp);
 
@@ -124,6 +127,9 @@ console.log('login resp', resp);
 
 
   const logout = () => {
+    // Clear all cached queries on logout
+    queryClient.clear();
+    
     setUser(null);
     apiClient.setAuthToken(null);
     apiClient.setUserId(null);
